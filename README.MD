@@ -367,6 +367,7 @@ Riproducibili con qualsiasi player HLS (hls.js, Video.js, VLC, ecc.).
 | `TimeToEnd` | Secondi alla fine (negativo = già finito) |
 | `DurataMinuti` | Durata prevista in minuti |
 
---
+---
+
 # DISCLAIMER
-see [disclaimer.md](./DISCLAIMER.MD)
+see [disclaimer.md](./DISCLAIMER.md)
