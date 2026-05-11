@@ -369,4 +369,4 @@ Riproducibili con qualsiasi player HLS (hls.js, Video.js, VLC, ecc.).
 
 --
 # DISCLAIMER
-see (disclaimer.md)[./DISCLAIMER.MD]
+see [disclaimer.md](./DISCLAIMER.MD)
