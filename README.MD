@@ -134,6 +134,18 @@ Restituisce il prossimo evento programmato.
 
 ---
 
+### Canale live
+> [!NOTE]
+> per procedere con la richiesta, è necessario recuperare la password hardcodata nell'app.
+> anche in questo caso si può procedere con lo spoofing via proxy.
+
+```
+GET https://www.arancialive.com/admin/getUrlstreaming.ashx?https=si&debug=no&psw={PSWHARDCODATA}
+```
+
+restituisce l'm3u8 del canale live multi definizione. 
+
+
 ### Catalogo on demand
 
 ```
@@ -228,13 +240,13 @@ esempio (/tariffa/9)
 
 ---
 
-### Utenti online - WIP
+### Utenti online
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/GetUtentiOnline/{IDVIDEO} o {IDEVENTO}
+GET https://www.arancialive.com/api/app/1/{longstring}/GetUtentiOnline/{IDEVENTO}
 ```
 
-Numero di utenti connessi in questo momento all'evento live.
+Restituisce il numero di utenti connessi in questo momento all'evento live.
 
 ---
 
