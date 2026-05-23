@@ -1,7 +1,7 @@
 # arancia api — unofficial documentation
 
 > [!NOTE]
-> documentazione ricavata tramite reverse engineering dell'APK Android (v3.3) e del codice sorgente C# (`ApiRestClient.cs`).
+> documentazione ricavata tramite reverse engineering dell'APK Android (v3.3).
 > tutti gli endpoint sono di sola lettura tranne `device/new`, `EseguiPagamento`, `GeneraToken`, `AssociaEmail` e `CancellaAccount`.
 > non esiste documentazione ufficiale pubblica.
 
