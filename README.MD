@@ -1,23 +1,24 @@
 # arancia api — unofficial documentation
 
 > [!NOTE]
-> documentazione ricavata tramite reverse engineering dell'APK Android (v3.3).
-> tutti gli endpoint sono di sola lettura tranne `device/new` e `Login`.
+> documentazione ricavata tramite reverse engineering dell'APK Android (v3.3) e del codice sorgente C# (`ApiRestClient.cs`).
+> tutti gli endpoint sono di sola lettura tranne `device/new`, `EseguiPagamento`, `GeneraToken`, `AssociaEmail` e `CancellaAccount`.
 > non esiste documentazione ufficiale pubblica.
-> alcuni endpoint possono essere WIP perché non testati completamente.
 
 ---
 
-## Autenticazione & Device ID
+## Autenticazione & Device ID / ApiKey
 
 ### Come funziona
 
-ogni richiesta richiede un `{longstring}` nell'URL — un device ID che identifica il "dispositivo" presso il server.
+ogni richiesta richiede una `{APIKEY}` nell'URL, una chiave hardcodata nell'app stessa che identifica il "canale" presso il server.
 
-Il device ID è hardcoded nell'app stessa. Basta fare spoofing con un proxy che intercetta le richiesta.
-Questo ID è già registrato nel DB del server e funziona per tutte le richieste pubbliche (contenuti gratuiti). Non è legato a nessun utente reale.
+questo valore è già registrato nel DB del server e funziona per tutte le richieste pubbliche (contenuti gratuiti).
 
 Per registrare un nuovo device ID, vedere [device/new](#registrazione-device).
+
+> [!NOTE]
+> Il campo `{IDCANALE}` è sempre `1`.
 
 ---
 
@@ -46,7 +47,7 @@ User-Agent: AranciaLiveApp/19 CFNetwork/3826.600.41 Darwin/24.6.0
 GET https://www.arancialive.com/api/app
 ```
 
-Restituisce nome e versione API. Non richiede device ID.
+Restituisce nome e versione API. Non richiede ApiKey.
 
 **Risposta:**
 ```json
@@ -58,7 +59,7 @@ Restituisce nome e versione API. Non richiede device ID.
 ### Registrazione device
 
 ```
-POST https://www.arancialive.com/api/app/1/{longstring}/device/new
+POST https://www.arancialive.com/api/app/1/{APIKEY}/device/new
 ```
 
 Registra un nuovo device ID sul server. Va chiamato prima di qualsiasi altro endpoint se si usa un device ID nuovo.
@@ -75,7 +76,7 @@ Registra un nuovo device ID sul server. Va chiamato prima di qualsiasi altro end
 }
 ```
 
-Il campo `DEVICEID` è un secondo identificatore nel formato `I` + 64 caratteri hex uppercase (SHA-256 di bytes casuali). È distinto dal `{longstring}` nell'URL.
+Il campo `DEVICEID` è un secondo identificatore nel formato `I` + 64 caratteri hex uppercase (SHA-256 di bytes casuali). È distinto dalla `{APIKEY}` nell'URL.
 
 **Risposta:**
 ```json
@@ -86,17 +87,17 @@ Il campo `DEVICEID` è un secondo identificatore nel formato `I` + 64 caratteri 
 ```
 
 > [!NOTE]
-> Se si usa il device ID hardcoded, questo step non è necessario.
+> Se si usa l'ApiKey hardcodata, questo step non è necessario.
 
 ---
 
 ### Lista eventi live
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/live/list
+GET https://www.arancialive.com/api/app/1/{APIKEY}/live/list
 ```
 
-Restituisce gli eventi in diretta in questo momento. Ritorna `[]` se non c'è nulla in onda, `null` se il device ID non è registrato.
+Restituisce gli eventi in diretta in questo momento. Ritorna `[]` se non c'è nulla in onda, `null` se l'ApiKey non è registrata.
 
 **Risposta:**
 ```json
@@ -127,7 +128,7 @@ Restituisce gli eventi in diretta in questo momento. Ritorna `[]` se non c'è nu
 ### Prossimo evento live
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/live/next
+GET https://www.arancialive.com/api/app/1/{APIKEY}/live/next
 ```
 
 Restituisce il prossimo evento programmato.
@@ -135,21 +136,52 @@ Restituisce il prossimo evento programmato.
 ---
 
 ### Canale live
+
+```
+GET https://www.arancialive.com/admin/getUrlstreaming.ashx?https=si&debug=no&psw={PSW}
+```
+
+Restituisce l'm3u8 del canale live multi definizione.
+
 > [!NOTE]
-> per procedere con la richiesta, è necessario recuperare la password hardcodata nell'app.
-> anche in questo caso si può procedere con lo spoofing via proxy.
+> La password è hardcodata nell'app. Sostituire `si`/`no` rispettivamente ai parametri `https` e `debug`.
+
+---
+
+### Server streaming evento live
 
 ```
-GET https://www.arancialive.com/admin/getUrlstreaming.ashx?https=si&debug=no&psw={PSWHARDCODATA}
+GET https://www.arancialive.com/api/app/1/{APIKEY}/server/{IDEVENTO}/{DEVICEID}/{ts}/{hs}/{opt}
 ```
 
-restituisce l'm3u8 del canale live multi definizione. 
+Restituisce le info di streaming per un evento live specifico.
 
+| Parametro | Descrizione |
+|-----------|-------------|
+| `IDEVENTO` | ID dell'evento |
+| `DEVICEID` | ID del dispositivo |
+| `ts` | Timestamp |
+| `hs` | Hash di sicurezza |
+| `opt` | Opzione (default: `A`) |
+
+**Risposta:** `StreamingResponse` (struttura non ancora documentata completamente).
+
+---
+
+### Moltiplicatore
+
+```
+GET https://www.arancialive.com/admin/getmol.ashx
+```
+
+Restituisce un valore float (moltiplicatore). Il valore è sempre almeno `1.0`.
+
+---
 
 ### Catalogo on demand
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/ondemandSuddivisi
+GET https://www.arancialive.com/api/app/1/{APIKEY}/ondemandSuddivisi
 ```
 
 Restituisce tutti gli eventi on demand raggruppati per categoria.
@@ -189,21 +221,34 @@ Restituisce tutti gli eventi on demand raggruppati per categoria.
 ### Lista on demand (flat), divisa in pagine
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/ondemand/list/{NPAGINA}
+GET https://www.arancialive.com/api/app/1/{APIKEY}/ondemand/list/{NPAGINA}
 ```
 
 Versione flat in pagine non raggruppate del catalogo on demand.
-Esempio (https://www.arancialive.com/api/app/1/{longstring}/ondemand/list/1 per pagina 1)
+Esempio: `/ondemand/list/1` per la pagina 1.
+
+#### Filtro per categoria
+
+```
+GET https://www.arancialive.com/api/app/1/{APIKEY}/ondemand/list/{IDCATEGORIA}/{NPAGINA}
+```
+
+Stessa struttura, filtra per categoria.
 
 ---
 
 ### Dettagli video di un evento
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/ondemand/video/{IDEVENTO}/1
+GET https://www.arancialive.com/api/app/1/{APIKEY}/ondemand/video/{IDEVENTO}/{TIPOVIDEO}
 ```
 
 Restituisce i video associati a un evento (utile per eventi multi-episodio). Il `VideoUrl` è un link `.m3u8` (HLS) riproducibile direttamente.
+
+| Parametro | Descrizione |
+|-----------|-------------|
+| `IDEVENTO` | ID dell'evento |
+| `TIPOVIDEO` | Tipo di video (es. `1`) |
 
 **Risposta:**
 ```json
@@ -232,28 +277,46 @@ I `CopertinaUrl` relativi vanno prefissati con `https://www.arancialive.com`.
 ### Tariffa
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/tariffa/
+GET https://www.arancialive.com/api/app/1/{APIKEY}/tariffa/{IDTARIFFA}
 ```
 
 Restituisce le tariffe disponibili per i contenuti a pagamento (`IDTARIFFA != 0`).
-esempio (/tariffa/9)
+Esempio: `/tariffa/9`
 
 ---
 
 ### Utenti online
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/GetUtentiOnline/{IDEVENTO}
+GET https://www.arancialive.com/api/app/1/{APIKEY}/GetUtentiOnline/{IDEVENTO}
 ```
 
 Restituisce il numero di utenti connessi in questo momento all'evento live.
 
 ---
 
+### Registra utente online
+
+```
+GET https://www.arancialive.com/api/app/1/{APIKEY}/UtenteOnlineInsert/{IDEVENTO}/{DEVICEID}
+```
+
+Segnala al server che un dispositivo sta guardando un evento live.
+
+**Risposta:**
+```json
+{
+  "result": "OK",
+  "error": null
+}
+```
+
+---
+
 ### Incrementa visualizzazioni
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/IncrementaVisualizzazione/{IDVIDEO}/1
+GET https://www.arancialive.com/api/app/1/{APIKEY}/IncrementaVisualizzazione/{IDEVENTO}
 ```
 
 Segnala al server che un video è stato visualizzato (per aggiornare il contatore `nVisualizzazioni`).
@@ -274,7 +337,7 @@ Segnala al server che un video è stato visualizzato (per aggiornare il contator
 > **Endpoint estremamente insicuro.** Le credenziali viaggiano in chiaro nell'URL e quindi visibili nei log del server o nei proxy. Non usarlo su reti non fidate.
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/Login/{email}/{password}/
+GET https://www.arancialive.com/api/app/1/{APIKEY}/Login/{email}/{password}/
 ```
 
 **Risposta:**
@@ -282,7 +345,7 @@ GET https://www.arancialive.com/api/app/1/{longstring}/Login/{email}/{password}/
 {
   "IDACCOUNT": 1,
   "Email": "utente@esempio.it",
-  "Password": "latuapassword", // wtf is thisss
+  "Password": "latuapassword", // perché no... XD
   "IDDEVICE": "",
   "IDDEVICE2": "",
   "IDDEVICE3": "",
@@ -296,58 +359,93 @@ GET https://www.arancialive.com/api/app/1/{longstring}/Login/{email}/{password}/
 }
 ```
 
-Il campo `Hash` è necessario per gli endpoint che richiedono autenticazione (acquisti, verifica acquisti).
+Il campo `Hash` è necessario per gli endpoint che richiedono autenticazione (acquisti, verifica acquisti, PPV, cancellazione account).
+Il campo `IDACCOUNT` è `ida` negli endpoint autenticati.
 
 ---
 
-### Verifica acquisto
+### Genera token web
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/VerificaAcquisto/
-GET https://www.arancialive.com/api/app/1/{longstring}/VerificaAcquistoToken
+POST https://www.arancialive.com/api/app/1/{APIKEY}/GeneraToken/{DEVICEID}
 ```
 
-Verifica se l'utente loggato ha acquistato un contenuto a pagamento.
+Genera un codice/token per associare il dispositivo a una sessione web.
+
+**Body:** stringa vuota `""`
+
+**Risposta:** stringa con il token generato.
 
 ---
 
-### Esegui pagamento
+### Associa email a device
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/EseguiPagamento
+POST https://www.arancialive.com/api/app/1/{APIKEY}/AssociaEmail/{DEVICEID}/{EMAIL}/
 ```
 
-Avvia il flusso di acquisto. Richiede login.
+Associa un indirizzo email a un device ID.
 
----
-
-### Verifica autorizzazione PPV - WIP
-
-```
-GET https://www.arancialive.com/api/app/1/{longstring}/isPPVAutorizzato/
-```
-
-Verifica se l'utente è autorizzato a vedere un contenuto Pay-Per-View.
+**Body:** stringa vuota `""`
 
 ---
 
 ### Email da device
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/getEmailDaDevice/{DEVICEID}/
+GET https://www.arancialive.com/api/app/1/{APIKEY}/getEmailDaDevice/{DEVICEID}/
 ```
 
-Ritorna l'email associata a un device ID. Risponde `[]` se il device non è associato a nessun account.
+Ritorna l'email (account) associata a un device ID. Risponde `[]` se il device non è associato a nessun account.
+
+---
+
+### Verifica acquisto
+
+```
+GET https://www.arancialive.com/api/app/1/{APIKEY}/VerificaAcquisto/{IDEVENTO}/{IDDEVICE}
+GET https://www.arancialive.com/api/app/1/{APIKEY}/VerificaAcquistoToken/{IDEVENTO}/{IDDEVICE}
+```
+
+Verifica se l'utente loggato ha acquistato un contenuto a pagamento.
+
+---
+
+### Verifica autorizzazione PPV
+
+```
+GET https://www.arancialive.com/api/app/1/{APIKEY}/isPPVAutorizzato/{IDACCOUNT}/{HASHACCOUNT}/{IDEVENTO}/
+```
+
+Verifica se l'utente è autorizzato a vedere un contenuto Pay-Per-View.
+
+| Parametro | Descrizione |
+|-----------|-------------|
+| `IDACCOUNT` | Campo `IDACCOUNT` dalla risposta Login |
+| `HASHACCOUNT` | Campo `Hash` dalla risposta Login |
+| `IDEVENTO` | ID dell'evento |
+
+---
+
+### Esegui pagamento
+
+```
+POST https://www.arancialive.com/api/app/1/{APIKEY}/EseguiPagamento
+```
+
+Avvia il flusso di acquisto. Richiede login. Body: `UtenteAutorizzatoRequest` (struttura non ancora documentata completamente).
 
 ---
 
 ### Cancella account
 
 ```
-GET https://www.arancialive.com/api/app/1/{longstring}/CancellaAccount/
+POST https://www.arancialive.com/api/app/1/{APIKEY}/CancellaAccount/{IDACCOUNT}/{HASHACCOUNT}
 ```
 
-Elimina l'account utente. Richiede login.
+Elimina l'account utente. Richiede le credenziali ottenute dal Login.
+
+**Body:** stringa vuota `""`
 
 ---
 
